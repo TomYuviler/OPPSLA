@@ -16,7 +16,7 @@ We evaluate OPPSLA on several deep networks for CIFAR-10 and ImageNet. We show t
 
 1. Clone the repository:
 
-git clone https://github.com/username/OnePixelAttacks-SketchedPrograms.git
+git clone https://github.com/TomYuviler/OPPSLA.git
 
 
 2. Navigate to the cloned repository and install the required dependencies:
