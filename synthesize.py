@@ -26,7 +26,7 @@ import torch.multiprocessing as tmp
 from torch.utils.data import DataLoader
 from torchvision.models import resnet50, densenet121
 from MH import run_MH
-from utils_ import *
+from utils import *
 
 
 # def select_n_images_imagenet(n, true_label, data_loader, model, values_dict, k_user, device):

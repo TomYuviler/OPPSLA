@@ -27,7 +27,7 @@ import pandas as pd
 import torch.multiprocessing as tmp
 from torchvision.models import resnet50, efficientnet_b0, densenet121
 from synthesize import run_program
-from utils_ import *
+from utils import *
 
 if __name__ == '__main__':
     torch.cuda.empty_cache()
