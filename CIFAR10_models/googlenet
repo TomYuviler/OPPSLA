@@ -77,6 +77,8 @@ class GoogLeNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.dropout = nn.Dropout(0.2)
         self.fc = nn.Linear(1024, num_classes)
+        self.mean = [0.4914, 0.4822, 0.4465]
+        self.std = [0.2471, 0.2435, 0.2616]
 
     #         if init_weights:
     #             self._initialize_weights()
