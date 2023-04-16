@@ -6,10 +6,10 @@ import copy
 import os
 import torchvision.transforms as transforms
 from torchvision import datasets
-from vgg import vgg16_bn
+from CIFAR10_models.vgg import vgg16_bn
 from CIFAR10_models.resnet import resnet18
 from CIFAR10_models.googlenet import GoogLeNet
-from CIFAR10_models.densenet import densenet121
+from torchvision.models import resnet50, efficientnet_b0, densenet121
 from tqdm import tqdm
 
 
