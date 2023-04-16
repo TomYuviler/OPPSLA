@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import os
+from torchvision import transforms
 
 __all__ = [
     "ResNet",
