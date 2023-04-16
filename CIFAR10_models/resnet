@@ -160,6 +160,8 @@ class ResNet(nn.Module):
             )
         self.groups = groups
         self.base_width = width_per_group
+        self.mean = [0.4914, 0.4822, 0.4465]
+        self.std = [0.2471, 0.2435, 0.2616]
 
         # CIFAR10: kernel_size 7 -> 3, stride 2 -> 1, padding 3->1
         self.conv1 = nn.Conv2d(
