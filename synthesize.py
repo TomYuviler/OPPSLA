@@ -26,42 +26,8 @@ import torch.multiprocessing as tmp
 from torch.utils.data import DataLoader
 from torchvision.models import resnet50, densenet121
 from MH import run_MH
-from utils import *
+from utils_ import *
 
-
-# def select_n_images_imagenet(n, true_label, data_loader, model, values_dict, k_user, device):
-#     good_idx_list = []
-#     good_class_list = []
-#     for batch_idx, (data, target) in enumerate(data_loader):
-#         is_success = False
-#         img_x, img_y = data.to(device), target.to(device)
-#         if img_y.item() not in [16, 17]:
-#             continue
-#         softmax = nn.Softmax(dim=1)
-#         predictions_vector = softmax(model(img_x).data)
-#         pred = torch.argmax(predictions_vector)
-#         if pred.item() != img_y.item():
-#             continue
-#         print(batch_idx, "$$$", img_y)
-#         select_n_queries = 0
-#         possible_directions_list = create_sorted_loc_pert_list(img_x, values_dict)
-#         for coor in possible_directions_list:
-#             if is_success:
-#                 break
-#             select_n_queries += 1
-#             # if select_n_queries > 150000:
-#             #     break
-#             x, y = coor[0]
-#             pert_type = coor[1]
-#             is_success, queries, curr_prob = try_perturb_pixel(x, y, model, img_x, img_y, pert_type, device)
-#         if is_success:
-#             if img_y.item() not in good_class_list or True:
-#                 good_idx_list.append(batch_idx)
-#                 good_class_list.append(img_y.item())
-#                 print("SUCCESS!!")
-#             if len(good_idx_list) == n:
-#                 return good_idx_list
-#     return good_idx_list
 
 
 def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, device, is_test=False, class_idx=None, results_path=None):
@@ -86,6 +52,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, de
     """
     model = model.to(device)
     model.eval()
+    center_matrix = center_matrix.to(device)
     pert_type_to_idx_dict = create_pert_type_to_idx_dict()
     if is_test:
         results_df = pd.DataFrame(columns=["batch_idx", "class", "is_success", "queries"])
@@ -149,12 +116,12 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, de
                         possible_loc_pert_list.append(possible_loc_pert_list. \
                             pop(possible_loc_pert_list.index(((x, y), new_pert_type))))
 
-            pixels_probs_list_wide, pixels_probs_list_deep = initialize_pixels_conf_lists(x, y, pert_type, curr_prob)
-            while ((not pixels_probs_list_wide.empty()) or (not pixels_probs_list_deep.empty())) and not is_success:
+            loc_queue, pert_queue = initialize_pixels_conf_queues(x, y, pert_type, curr_prob)
+            while ((not loc_queue.empty()) or (not pert_queue.empty())) and not is_success:
                 if n_queries >= max_queries:
                     break
-                while (not pixels_probs_list_wide.empty()) and (not is_success):
-                    pixel_prob = pixels_probs_list_wide.get()
+                while (not loc_queue.empty()) and (not is_success):
+                    pixel_prob = loc_queue.get()
                     best_x, best_y = pixel_prob[0]
                     pert_type = pixel_prob[1]
                     if check_cond(program.cond_3, img_x, best_x, best_y, orig_prob, pixel_prob[2], center_matrix):
@@ -171,12 +138,12 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, de
                                 indicators_tensor[pert_type_to_idx_dict[pert_type]][new_x][new_y] = 1
                                 n_queries += queries
                                 update_min_confidence_dict(min_prob_dict, new_x, new_y, curr_prob)
-                                pixels_probs_list_wide.put(((new_x, new_y), pert_type, curr_prob))
-                                pixels_probs_list_deep.put(((new_x, new_y), pert_type, curr_prob))
+                                loc_queue.put(((new_x, new_y), pert_type, curr_prob))
+                                pert_queue.put(((new_x, new_y), pert_type, curr_prob))
                                 if is_success:
                                     sum_queries += n_queries
-                while (not pixels_probs_list_deep.empty()) and (not is_success):
-                    pixel_prob = pixels_probs_list_deep.get()
+                while (not pert_queue.empty()) and (not is_success):
+                    pixel_prob = pert_queue.get()
                     new_x, new_y = pixel_prob[0]
                     if check_cond(program.cond_4, img_x, new_x, new_y, orig_prob, pixel_prob[2], center_matrix):
                         pert_type = pixel_prob[1]
@@ -192,8 +159,8 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, de
                             indicators_tensor[pert_type_to_idx_dict[new_pert_type]][new_x][new_y] = 1
                             update_min_confidence_dict(min_prob_dict, new_x, new_y, curr_prob)
                             n_queries += queries
-                            pixels_probs_list_wide.put(((new_x, new_y), new_pert_type, curr_prob))
-                            pixels_probs_list_deep.put(((new_x, new_y), new_pert_type, curr_prob))
+                            loc_queue.put(((new_x, new_y), new_pert_type, curr_prob))
+                            pert_queue.put(((new_x, new_y), new_pert_type, curr_prob))
                             if is_success:
                                 sum_queries += n_queries
                                 break
@@ -203,8 +170,9 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, de
 
         if is_test:
             results_df = update_results_df(results_df, results_path, batch_idx, class_idx, is_success, n_queries)
-
-    return sum_queries / num_success
+    model.to('cpu')
+    if not is_test:
+        return sum_queries / num_success
 
 
 def synthesize(args):
@@ -230,60 +198,84 @@ def synthesize(args):
         - Writes the synthesis results to a '.txt' file.
         - Prints the progress of the synthesis process.
     """
+    # Clear GPU cache
     torch.cuda.empty_cache()
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    devices = []
-    num_gpus = torch.cuda.device_count()
-    if torch.cuda.is_available():
-        print('Using', num_gpus, "GPUs")
-        for i in range(num_gpus):
-            devices.append(torch.device('cuda:' + str(i)))
 
+    # Set up device(s)
+    devices = setup_devices()
+
+    # Load train data
     train_data, img_dim = get_data_set(args)
     train_loader = DataLoader(train_data, shuffle=False, batch_size=1)
-    model = load_model(args.model, device)
-    center_matrix = generate_center_matrix(img_dim, device)
 
+    # Load model
+    model = load_model(args.model)
+
+    # Generate center matrix
+    center_matrix = generate_center_matrix(img_dim)
+
+    # Write initial synthesis information to a file
     with open(args.model + '_' + args.data_set + '.txt', 'w') as f:
         f.write("data set: " + args.data_set + "\n")
         f.write("number of training images: " + str(args.num_train_images) + "\n")
 
     program_dict = {}
 
+    # Iterate over the specified classes
     for class_idx in args.classes_list:
         print("########################")
         print("synthesizing program for class : ", class_idx)
         print("########################")
+
+        # Select a subset of images from the class
         train_imgs_idx = select_n_images(args.num_train_images, class_idx, train_loader, model, args.max_g, args.g, device)
         n_train_data = torch.utils.data.Subset(train_data, train_imgs_idx)
         data_loader = torch.utils.data.DataLoader(n_train_data, shuffle=False, batch_size=1)
+
+        # Initialize the best program and its query count
         best_program = program_.Program(img_dim)
         best_queries = run_program(best_program, model, data_loader, img_dim, center_matrix, args.max_g, args.g, device)
         previous_best_queries = None
         num_same_best_queries_iter = 1
+
+        # Start the main synthesis loop
         with tqdm(total=args.max_iter, desc="Synthesizing program",
                   bar_format="{l_bar}{bar:10}{r_bar}") as pbar:
 
+            # Perform synthesis in chunks
             for iter_idx in range(int(args.max_iter / 10)):
+
+                # Update the iteration counter for unchanged query counts
                 if previous_best_queries == best_queries:
                     num_same_best_queries_iter += 1
                 else:
                     num_same_best_queries_iter = 1
+
+                # Stop early if the query count hasn't changed for a few iterations
                 if num_same_best_queries_iter == int(args.num_iter_stop / 10):
                     break
+
+                # Update the previous best query count
                 previous_best_queries = best_queries
+
+                # Set up a queue and context for multiprocessing
                 queue_proc = tmp.Manager().Queue()
                 ctx = tmp.get_context('spawn')
                 processes = []
+
+                # Create processes for each device
                 for device_ in devices:
                     processes.append(ctx.Process(target=run_MH, \
                         args=(best_program, best_queries, model, data_loader, img_dim, center_matrix, 10, queue_proc, args.max_g,\
                               args.g, device_)))
 
+                # Start and join all processes
                 for proc in processes:
                     proc.start()
                 for proc in processes:
                     proc.join()
+
+                # Update the best program and its query count
                 best_program, best_queries = update_best_program(queue_proc, best_program, best_queries)
                 pbar.update(10)
             program_dict[class_idx] = best_program
