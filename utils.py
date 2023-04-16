@@ -7,9 +7,9 @@ import os
 import torchvision.transforms as transforms
 from torchvision import datasets
 from vgg import vgg16_bn
-from resnet_cifar import resnet18
-from googlenet import GoogLeNet
-from densenet import densenet121 
+from CIFAR10_models.resnet import resnet18
+from CIFAR10_models.googlenet import GoogLeNet
+from CIFAR10_models.densenet import densenet121
 from tqdm import tqdm
 
 
@@ -20,7 +20,6 @@ def setup_devices():
     Returns:
         list: A list of torch.device objects representing available CUDA devices.
     """
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     devices = []
     num_gpus = torch.cuda.device_count()
     if torch.cuda.is_available():
