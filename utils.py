@@ -6,11 +6,30 @@ import copy
 import os
 import torchvision.transforms as transforms
 from torchvision import datasets
-from vgg import vgg11_bn, vgg13_bn, vgg16_bn, vgg19_bn
+from vgg import vgg16_bn
 from resnet_cifar import resnet18
-from googlenet import googlenet, GoogLeNet
-from densenet import densenet121, densenet161, densenet169
+from googlenet import GoogLeNet
+from densenet import densenet121 
 from tqdm import tqdm
+
+
+def setup_devices():
+    """
+    Set up the available CUDA devices for parallel processing.
+
+    Returns:
+        list: A list of torch.device objects representing available CUDA devices.
+    """
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    devices = []
+    num_gpus = torch.cuda.device_count()
+    if torch.cuda.is_available():
+        print(f'Using {num_gpus} GPUs')
+        for i in range(num_gpus):
+            devices.append(torch.device(f'cuda:{i}'))
+    return devices
+
+
 
 def generate_real_value(cond_type, img_dim):
     """
@@ -25,7 +44,7 @@ def generate_real_value(cond_type, img_dim):
         float: A real value generated based on the given condition type and image dimension.
     """
     if cond_type == "CENTER":
-        real_value = random.randint(0, (img_dim // 2) - 1)
+        real_value = random.randint(1, (img_dim // 2) - 1)
     elif cond_type == "SCORE_DIFF":
         real_value = random.uniform(-0.02, 0.3)
     else:
@@ -33,22 +52,20 @@ def generate_real_value(cond_type, img_dim):
     return real_value
 
 
-def generate_center_matrix(img_dim, device):
+def generate_center_matrix(img_dim):
     """
     Generate a center matrix of the specified image dimension.
 
     This function creates a square matrix of size img_dim x img_dim, where each element
-    represents the l_inf distance of the element from the center of the matrix. The
-    matrix is created on the specified device.
+    represents the l_inf distance of the element from the center of the matrix.
 
     Args:
         img_dim (int): An integer representing the image dimension.
-        device (torch.device): The device where the center matrix will be created, e.g., 'cpu' or 'cuda'.
 
     Returns:
         torch.Tensor: A torch.Tensor representing the center matrix with shape (img_dim, img_dim).
     """
-    center_matrix = torch.zeros((img_dim, img_dim), device=device)
+    center_matrix = torch.zeros((img_dim, img_dim), device='cpu')
     interval = [0, img_dim - 1]
     distance = 0
 
@@ -79,7 +96,7 @@ def generate_random_condition(img_dim):
     comparison_operator = random.choice([">", "<"])
 
     if cond_type == "CENTER":
-        real_value = random.randint(0, (img_dim // 2) - 1)
+        real_value = random.randint(1, (img_dim // 2) - 1)
     elif cond_type == "SCORE_DIFF":
         real_value = random.uniform(-0.02, 0.3)
     else:
@@ -217,7 +234,7 @@ def create_pert_type_to_idx_dict():
     }
 
 
-def initialize_pixels_conf_lists(x, y, pert_type, curr_confidence):
+def initialize_pixels_conf_queues(x, y, pert_type, curr_confidence):
     pixels_conf_list_wide = queue.Queue()
     pixels_conf_list_wide.put(((x, y), pert_type, curr_confidence))
     pixels_conf_list_deep = queue.Queue()
@@ -391,7 +408,7 @@ def generate_finer_granularity(g):
     return finer_granularity_list
 
 
-def get_data_set(args):
+def get_data_set(args, is_train=True):
     """
     Loads the specified dataset and applies the necessary transformations.
 
@@ -399,9 +416,11 @@ def get_data_set(args):
         args (argparse.Namespace): An object containing the parsed command-line arguments.
             - args.data_set (str): The name of the dataset to load. Supported options are "cifar10" and "imagenet".
             - args.imagenet_dir (str, optional): The directory containing the ImageNet dataset images, if applicable.
+        is_train (bool, optional): If True, the function loads the training dataset. Otherwise, it loads the test dataset.
+            Default is True.
 
     Returns:
-        train_data (torch.utils.data.Dataset): The loaded and pre-processed dataset.
+        dataset (torch.utils.data.Dataset): The loaded and pre-processed dataset.
         img_dim (int): The dimensions (width and height) of the images in the dataset.
 
     Raises:
@@ -411,7 +430,7 @@ def get_data_set(args):
         img_dim = 32
         transform = transforms.Compose(
             [transforms.ToTensor()])
-        train_data = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+        train_data = datasets.CIFAR10(root='./data', train=is_train, download=True, transform=transform)
     elif args.data_set == "imagenet":
         img_dim = 224
         if args.imagenet_dir is None:
@@ -432,16 +451,15 @@ def get_data_set(args):
     return train_data, img_dim
 
 
-def load_model(model_name, device):
+def load_model(model_name):
     """
     Loads a pre-trained model given its name and transfers it to the specified device.
 
     Args:
         model_name (str): The name of the model to load. Supported options are "vgg16", "resnet18", and "GoogLeNet".
-        device (torch.device): The device to which the model should be transferred (e.g., 'cuda' or 'cpu').
 
     Returns:
-        model (torch.nn.Module): The loaded and pre-trained model, transferred to the specified device and set to evaluation mode.
+        model (torch.nn.Module): The loaded and pre-trained model, and set to evaluation mode.
     """
     if model_name == "vgg16":
         model = vgg16_bn()
@@ -453,7 +471,6 @@ def load_model(model_name, device):
         model = GoogLeNet()
         model.load_state_dict(torch.load("googlenet.pt", map_location='cpu'))
 
-    model = model.to(device)
     model.eval()
     return model
 
@@ -514,6 +531,7 @@ def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g,
     Returns:
         list: A list of successful image indices.
     """
+    model.to(device)
     successful_indices = []
 
     with tqdm(total=num_synthesis_images, desc="Creating data set for synthesis",
