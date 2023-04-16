@@ -1,5 +1,4 @@
 # One Pixel Adversarial Attacks via Sketched Programs
-[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4431043.svg)](http://dx.doi.org/10.5281/zenodo.4431043)
 This repository contains the code for the paper "One Pixel Adversarial Attacks via Sketched Programs" by Tom Yuviler and Dana Drachsler-Cohen from the Technion, Israel. The paper proposes a novel approach to generate one pixel adversarial attacks with significantly fewer queries to the network by leveraging program synthesis.
 
 ## Abstract
@@ -34,6 +33,9 @@ _TODO: Provide instructions on how to use the code, including input formats, exa
 ## Results
 
 _TODO: Summarize the results obtained from the experiments performed in the paper._
+
+## Models
+CIFAR-10 models adapted from [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4431043.svg)](http://dx.doi.org/10.5281/zenodo.4431043). 
 
 ## Citation
 
