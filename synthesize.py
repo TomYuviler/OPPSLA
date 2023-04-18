@@ -7,7 +7,7 @@ import pandas as pd
 import torch.multiprocessing as tmp
 from torch.utils.data import DataLoader
 from metropolis_hastings import run_MH
-from utils_ import *
+from utils import *
 
 
 

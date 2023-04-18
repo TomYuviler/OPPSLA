@@ -462,13 +462,13 @@ def load_model(model_name):
     """
     if model_name == "vgg16":
         model = vgg16_bn()
-        model.load_state_dict(torch.load("vgg16_bn.pt", map_location='cpu'))
+        model.load_state_dict(torch.load("CIFAR10_models/vgg16_bn.pt", map_location='cpu'))
     elif model_name == "resnet18":
         model = resnet18()
-        model.load_state_dict(torch.load("resnet18.pt", map_location='cpu'))
+        model.load_state_dict(torch.load("CIFAR10_models/resnet18.pt", map_location='cpu'))
     elif model_name == "GoogLeNet":
         model = GoogLeNet()
-        model.load_state_dict(torch.load("googlenet.pt", map_location='cpu'))
+        model.load_state_dict(torch.load("CIFAR10_models/googlenet.pt", map_location='cpu'))
 
     model.eval()
     return model
