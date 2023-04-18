@@ -3,7 +3,7 @@ import program_
 import argparse
 import torch.multiprocessing as tmp
 from synthesize import run_program
-from utils_ import *
+from utils import *
 
 
 def attack(args):
