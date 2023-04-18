@@ -1,32 +1,13 @@
-import os
-import random
-import sys
 import pickle
 import program_
 import argparse
-import numpy as np
-from random import randrange
-import queue
-import math
 import torch
-from torchvision import datasets, transforms
-import copy
-import torch
-import torchvision
-import torchvision.transforms as transforms
-import torch.nn.functional as F
 import torch.nn as nn
-from tqdm import tqdm
-from vgg import vgg11_bn, vgg13_bn, vgg16_bn, vgg19_bn
-from resnet_cifar import resnet18
-from googlenet import googlenet, GoogLeNet
-from densenet import densenet121, densenet161, densenet169
 import pandas as pd
 import torch.multiprocessing as tmp
 from torch.utils.data import DataLoader
-from torchvision.models import resnet50, densenet121
-from MH import run_MH
-from utils import *
+from metropolis_hastings import run_MH
+from utils_ import *
 
 
 
@@ -202,6 +183,7 @@ def synthesize(args):
     torch.cuda.empty_cache()
 
     # Set up device(s)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     devices = setup_devices()
 
     # Load train data
