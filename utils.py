@@ -2,8 +2,8 @@ import random
 import torch
 import queue
 import torch.nn as nn
-import copy
 import os
+import copy
 import torchvision.transforms as transforms
 from torchvision import datasets
 from CIFAR10_models.vgg import vgg16_bn
