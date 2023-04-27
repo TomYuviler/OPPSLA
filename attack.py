@@ -18,6 +18,7 @@ def attack(args):
             - args.classes_list (List[int]): The list of classes to attack.
             - args.max_g (int): The maximum number of pixels to perturb with finer granularity.
             - args.g (int): The level of granularity.
+            - args.max_queries (int) : The maximal number of possible queries per image.
     """
     # Clear GPU cache
     torch.cuda.empty_cache()
@@ -50,7 +51,7 @@ def attack(args):
     for i in range(num_gpus):
         available_devices.put(f"cuda:{i}")
     task_list = [(i, program_dict[args.classes_list[i]], model, test_loader, img_dim, center_matrix, args.max_g, \
-         args.g, devices[i % num_gpus], True, args.classes_list[i], args.results_path) for i in range(num_classes)]
+         args.g, args.max_queries, devices[i % num_gpus], True, args.classes_list[i], args.results_path) for i in range(num_classes)]
 
     # Perform attack
     with tmp.Pool(processes=num_gpus) as pool, tqdm(total=num_classes, desc="Attacking") as pbar:
@@ -72,6 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--results_path', default="./results_OPPSLA", type=str, help='path of the saved results')
     parser.add_argument('--g', default=0, type=int, help='level of granularity')
     parser.add_argument('--max_g', default=0, type=int, help='number of pixels with finer granularity')
+    parser.add_argument('--max_queries', default=10000, type=int, help='maximal number of queries per image')
 
     args = parser.parse_args()
     attack(args)

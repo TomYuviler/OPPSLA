@@ -47,7 +47,8 @@ def mutate_condition_type(program, img_dim, idx):
     setattr(program, 'cond_{}'.format(idx), cond)
 
 
-def run_MH(init_program, init_queries, model, dataloader, img_dim, center_matrix, max_iter, queue_proc, max_g, g, device):
+def run_MH(init_program, init_queries, model, dataloader, img_dim, center_matrix, max_iter, queue_proc, max_g, g,\
+           max_queries, device):
     """
     Perform Metropolis-Hastings algorithm for program optimization.
 
@@ -66,6 +67,7 @@ def run_MH(init_program, init_queries, model, dataloader, img_dim, center_matrix
         queue_proc (multiprocessing.Queue): A queue for inter-process communication, used to store results.
         max_g (int): The maximum number of pixels to perturb with finer granularity.
         g (int): The level of granularity.
+        max_queries (int) : The maximal number of possible queries per image.
         device (torch.device): The device where the model and tensors will be processed, e.g., 'cpu' or 'cuda'.
 
     Returns:
@@ -97,7 +99,7 @@ def run_MH(init_program, init_queries, model, dataloader, img_dim, center_matrix
                     mut_func(program, img_dim, idx_mutate - scale)
                     break
 
-        queries = run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, device)
+        queries = run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, device)
         score = math.e ** (-beta * (queries))
         if score == 0 or best_score == 0:
             alpha = 0

@@ -11,7 +11,8 @@ from utils import *
 
 
 
-def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, device, is_test=False, class_idx=None, results_path=None):
+def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, device, is_test=False,\
+                class_idx=None, results_path=None):
     """
     Run the specified program for adversarial attacks on a given model using the provided dataloader.
 
@@ -38,7 +39,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, de
     if is_test:
         results_df = pd.DataFrame(columns=["batch_idx", "class", "is_success", "queries"])
     num_imgs, num_success, sum_queries = 0, 0, 0
-    max_queries = 1000000000
+    max_queries = max_queries
     for batch_idx, (data, target) in enumerate(dataloader):
         is_success = False
         img_x, img_y = data.to(device), target.to(device)
@@ -170,6 +171,7 @@ def synthesize(args):
             - args.num_iter_stop (int): The number of iterations without change before stopping.
             - args.g (int): The level of granularity.
             - args.max_g (int): The number of pixels with finer granularity.
+            - args.max_queries (int) : The maximal number of possible queries per image.
 
     Returns:
         None
@@ -216,7 +218,8 @@ def synthesize(args):
 
         # Initialize the best program and its query count
         best_program = program_.Program(img_dim)
-        best_queries = run_program(best_program, model, data_loader, img_dim, center_matrix, args.max_g, args.g, device)
+        best_queries = run_program(best_program, model, data_loader, img_dim, center_matrix, args.max_g, args.g,\
+                                   args.max_queries, device)
         previous_best_queries = None
         num_same_best_queries_iter = 1
 
@@ -248,8 +251,8 @@ def synthesize(args):
                 # Create processes for each device
                 for device_ in devices:
                     processes.append(ctx.Process(target=run_MH, \
-                        args=(best_program, best_queries, model, data_loader, img_dim, center_matrix, 10, queue_proc, args.max_g,\
-                              args.g, device_)))
+                        args=(best_program, best_queries, model, data_loader, img_dim, center_matrix, 10, queue_proc,\
+                              args.max_g, args.g, args.max_queries, device_)))
 
                 # Start and join all processes
                 for proc in processes:
@@ -276,6 +279,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_iter_stop', default=60, type=int, help='# of iterations without change before stopping the algorithm')
     parser.add_argument('--g', default=0, type=int, help='Granularity level for the synthesis process')
     parser.add_argument('--max_g', default=0, type=int, help='Maximum number of pixels with finer granularity')
+    parser.add_argument('--max_queries', default=10000, type=int, help='maximal number of queries per image')
 
     args = parser.parse_args()
     synthesize(args)
