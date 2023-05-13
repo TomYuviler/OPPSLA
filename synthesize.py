@@ -269,7 +269,7 @@ def synthesize(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='OPPSLA Synthesizer')
-    parser.add_argument('--model', default='vgg16', type=str,
+    parser.add_argument('--model', default='resnet18', type=str,
                         help='Model architecture to use (e.g., vgg16, resnet18, etc.)')
     parser.add_argument('--data_set', default='cifar10', type=str, help='Dataset to use - must be CIFAR-10 or ImageNet')
     parser.add_argument('--classes_list', metavar='N', type=int, nargs='+', help='List of classes for the synthesis')
