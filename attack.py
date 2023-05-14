@@ -56,8 +56,8 @@ def attack(args):
     for i in range(num_gpus):
         available_devices.put(f"cuda:{i}")
     task_list = [(i, program_dict[args.classes_list[i]], model, test_loader, img_dim, center_matrix, args.max_g, \
-         args.g, args.max_queries, lmh_dict, devices[i % num_gpus], True, args.classes_list[i], args.results_path) \
-                 for i in range(num_classes)]
+         args.g, args.max_queries, lmh_dict, args.mean_norm, args.std_norm, devices[i % num_gpus], True,\
+                  args.classes_list[i], args.results_path) for i in range(num_classes)]
 
     # Perform attack
     with tmp.Pool(processes=num_gpus) as pool, tqdm(total=num_classes, desc="Attacking") as pbar:

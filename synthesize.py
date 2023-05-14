@@ -11,8 +11,8 @@ from utils import *
 
 
 
-def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, lmh_dict, device,\
-                is_test=False, class_idx=None, results_path=None):
+def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, lmh_dict, mean_norm,
+                std_norm, device, is_test=False, class_idx=None, results_path=None):
     """
     Run the specified program for adversarial attacks on a given model using the provided dataloader.
 
@@ -25,6 +25,8 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
         max_g (int): The maximum number of pixels to perturb with finer granularity.
         g (int): The level of granularity.
         lmh_dict (dict): A dictionary containing the 'min_values', 'mid_values', and 'max_values' for the perturbations.
+        mean_norm (list[float]):  The mean values for each channel used in image normalization.
+        std_norm (list[float]):  The standard deviation values for each channel used in image normalization.
         device (torch.device): The device to perform computations on (e.g., 'cuda' or 'cpu').
         is_test (bool, optional): Whether the current run is for the test set. Defaults to False.
         class_idx (int, optional): Index of the current class. Required if is_test is True. Defaults to None.
@@ -65,8 +67,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                     if g <= 0:
                         break
                     is_success, queries, curr_prob = try_perturb_pixel_finer_granularity(sorted_loc_list[loc_idx][0][0],
-                                                                                         sorted_loc_list[loc_idx][0][1],
-                                                                                         model, img_x, img_y, g, device)
+                                    sorted_loc_list[loc_idx][0][1], model, img_x, img_y, g, mean_norm, std_norm, device)
                     n_queries += queries
                     if is_success:
                         sum_queries += n_queries
@@ -220,14 +221,14 @@ def synthesize(args):
 
         # Select a subset of images from the class
         train_imgs_idx = select_n_images(args.num_train_images, class_idx, train_loader, model, args.max_g, args.g,\
-                                         lmh_dict, device)
+                                         lmh_dict, args.mean_norm, args.std_norm, device)
         n_train_data = torch.utils.data.Subset(train_data, train_imgs_idx)
         data_loader = torch.utils.data.DataLoader(n_train_data, shuffle=False, batch_size=1)
 
         # Initialize the best program and its query count
         best_program = program_.Program(img_dim)
         best_queries = run_program(best_program, model, data_loader, img_dim, center_matrix, args.max_g, args.g,\
-                                   args.max_queries, lmh_dict, device)
+                                   args.max_queries, lmh_dict, args.mean_norm, args.std_norm, device)
         previous_best_queries = None
         num_same_best_queries_iter = 1
 
@@ -260,7 +261,7 @@ def synthesize(args):
                 for device_ in devices:
                     processes.append(ctx.Process(target=run_MH, \
                         args=(best_program, best_queries, model, data_loader, img_dim, center_matrix, 10, queue_proc,\
-                              args.max_g, args.g, args.max_queries, lmh_dict, device_)))
+                              args.max_g, args.g, args.max_queries, lmh_dict, args.mean_norm, args.std_norm, device_)))
 
                 # Start and join all processes
                 for proc in processes:

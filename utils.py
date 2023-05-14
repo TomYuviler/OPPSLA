@@ -236,11 +236,29 @@ def create_pert_type_to_idx_dict():
 
 
 def initialize_pixels_conf_queues(x, y, pert_type, curr_confidence):
-    pixels_conf_list_wide = queue.Queue()
-    pixels_conf_list_wide.put(((x, y), pert_type, curr_confidence))
-    pixels_conf_list_deep = queue.Queue()
-    pixels_conf_list_deep.put(((x, y), pert_type, curr_confidence))
-    return pixels_conf_list_wide, pixels_conf_list_deep
+    """
+    Initialize two queue objects with initial pixel location, perturbation type and current confidence.
+
+    This function creates two queue.Queue objects, both initialized with a tuple containing
+    a pixel location (x, y), the perturbation type, and the current confidence. The queues are
+    returned in the same order they were created.
+
+    Parameters:
+    x (int): The x-coordinate of the pixel location.
+    y (int): The y-coordinate of the pixel location.
+    pert_type (list[str]): The type of perturbation to be applied.
+    curr_confidence (float): The current confidence score.
+
+    Returns:
+    tuple: A tuple containing two queue.Queue objects, each initialized with a tuple
+           containing the pixel location, perturbation type and current confidence.
+    """
+    loc_queue = queue.Queue()
+    loc_queue.put(((x, y), pert_type, curr_confidence))
+    pert_queue = queue.Queue()
+    pert_queue.put(((x, y), pert_type, curr_confidence))
+    return loc_queue, pert_queue
+
 
 def is_correct_prediction(model, img_x, img_y):
     """
@@ -375,7 +393,7 @@ def create_low_mid_high_values_dict(mean, std):
     return low_mid_high_values_dict
 
 
-def try_perturb_pixel_finer_granularity(x, y, model, img_x, img_y, g, device):
+def try_perturb_pixel_finer_granularity(x, y, model, img_x, img_y, g, mean_norm, std_norm, device):
     """
     Try perturbing a pixel with finer granularity and evaluate the impact on the model's prediction.
 
@@ -386,6 +404,8 @@ def try_perturb_pixel_finer_granularity(x, y, model, img_x, img_y, g, device):
         img_x (torch.Tensor): The input image tensor.
         img_y (torch.Tensor): The ground truth label tensor for the input image.
         g (int): The granularity level for generating finer perturbations.
+        mean_norm (list[float]):  The mean values for each channel used in image normalization.
+        std_norm (list[float]):  The standard deviation values for each channel used in image normalization.
         device (torch.device): The device to perform computations on (e.g., 'cuda' or 'cpu').
 
     Returns:
@@ -396,14 +416,12 @@ def try_perturb_pixel_finer_granularity(x, y, model, img_x, img_y, g, device):
     n_queries_pert = 0
     pert_img = torch.clone(img_x)
     finer_pert_granularity_list = generate_finer_granularity(g)
-    # mean = [0, 0, 0]
-    # std = [1, 1, 1]
-    # norm_finer_pert_granularity_list = [[(val - mean[i]) / std[i] for i, val in enumerate(row)] for row in finer_pert_granularity_list]
-    # print(norm_finer_pert_granularity_list)
+    norm_finer_pert_granularity_list = [[(val - mean_norm[i]) / std_norm[i] for i, val in enumerate(row)]\
+                                        for row in finer_pert_granularity_list]
 
     softmax = nn.Softmax(dim=1)
 
-    for pert in finer_pert_granularity_list:
+    for pert in norm_finer_pert_granularity_list:
         pert_img[0, :, x, y] = torch.tensor(pert)  # Apply the perturbation to all channels at once
         n_queries_pert += 1
         predictions_vector = softmax(model(pert_img).data)
@@ -548,7 +566,8 @@ def write_program_results(args, class_idx, best_program, best_queries):
         f.write(f"average number of queries on training set: {best_queries}\n\n")
 
 
-def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g, g, lmh_dict, device):
+def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g, g, lmh_dict, mean_norm, std_norm,
+                    device):
     """
     Selects n images from a data loader such that a successful one pixel attack can be performed on the selected images.
 
@@ -560,6 +579,8 @@ def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g,
         max_g (int): The maximum number of pixels to perturb with finer granularity.
         g (int): The level of granularity.
         lmh_dict (dict): A dictionary containing the 'min_values', 'mid_values', and 'max_values' for the perturbations.
+        mean_norm (list[float]):  The mean values for each channel used in image normalization.
+        std_norm (list[float]):  The standard deviation values for each channel used in image normalization.
         device (torch.device): The device to perform computations on (e.g., 'cpu' or 'cuda').
 
     Returns:
@@ -596,7 +617,7 @@ def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g,
                         is_success, queries, curr_confidence = try_perturb_pixel_finer_granularity(
                             sorted_loc_list[loc_idx][0][0],
                             sorted_loc_list[loc_idx][0][1],
-                            model, img_x, img_y, g, device)
+                            model, img_x, img_y, g, mean_norm, std_norm, device)
 
                     continue
 
