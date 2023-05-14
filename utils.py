@@ -1,5 +1,6 @@
 import random
 import torch
+import numpy as np
 import queue
 import torch.nn as nn
 import os
@@ -163,13 +164,14 @@ def create_loc_pert_dict(img_x, mid_values):
     return pixel_pert_dict
 
 
-def create_sorted_loc_pert_list(img_x):
+def create_sorted_loc_pert_list(img_x, lmh_dict):
     """
     Create a sorted list of pixel locations and perturbation types based on the difference of the perturbation type
     from the original pixel as the primary key and the distance from the center as a secondary key.
 
     Args:
         img_x (torch.Tensor): The input image tensor.
+        lmh_dict (dict): A dictionary containing the 'min_values', 'mid_values', and 'max_values' for the perturbations.
 
     Returns:
         list: A sorted list of tuples containing pixel locations and perturbation types.
@@ -182,7 +184,7 @@ def create_sorted_loc_pert_list(img_x):
         key=lambda x: abs((img_shape / 2) - x[0]) + abs((img_shape / 2) - x[1])
     )
 
-    loc_pert_dict = create_loc_pert_dict(img_x, [0.5, 0.5, 0.5])
+    loc_pert_dict = create_loc_pert_dict(img_x, lmh_dict['mid_values'])
     possible_loc_pert_list_with_prioritization = []
 
     for i in range(8):
@@ -307,7 +309,7 @@ def check_cond(cond, img_x, x, y, orig_confidence, confidence, center_matrix):
         return center_matrix[x, y] > value if comparison_operator == ">" else center_matrix[x, y] < value
 
 
-def try_perturb_pixel(x, y, model, img_x, img_y, pert_type, device):
+def try_perturb_pixel(x, y, model, img_x, img_y, pert_type, lmh_dict, device):
     """
     Try perturbing a pixel using the specified perturbation type and evaluate the impact on the model's prediction.
 
@@ -318,6 +320,7 @@ def try_perturb_pixel(x, y, model, img_x, img_y, pert_type, device):
         img_x (torch.Tensor): The input image tensor.
         img_y (torch.Tensor): The ground truth label tensor for the input image.
         pert_type (list): A list of strings representing the perturbation type for each color channel (e.g., ['MIN', 'MAX', 'MIN']).
+        lmh_dict (dict): A dictionary containing the 'min_values' and 'max_values' used for the perturbation.
         device (torch.device): The device to perform computations on (e.g., 'cuda' or 'cpu').
 
     Returns:
@@ -330,9 +333,9 @@ def try_perturb_pixel(x, y, model, img_x, img_y, pert_type, device):
 
     for c, pert in enumerate(pert_type):
         if pert == "MIN":
-            pert_img[0, c, x, y] = 0.0
+            pert_img[0, c, x, y] = lmh_dict['min_values'][c]
         else:
-            pert_img[0, c, x, y] = 1.0
+            pert_img[0, c, x, y] = lmh_dict['max_values'][c]
 
     n_queries_pert += 1
     softmax = nn.Softmax(dim=1)
@@ -344,6 +347,32 @@ def try_perturb_pixel(x, y, model, img_x, img_y, pert_type, device):
         return True, n_queries_pert, confidence
 
     return False, n_queries_pert, confidence
+
+
+def create_low_mid_high_values_dict(mean, std):
+    """
+    Generate a dictionary containing normalized 'max', 'mid', and 'min' values based on given mean and standard deviation.
+
+    The function creates a dictionary with keys 'max_values', 'mid_values', and 'min_values'. Each key corresponds to
+    a numpy array that results from the normalization operation (value - mean) / std.
+
+    The 'max_values' key corresponds to maximal value for each channel after normalization.
+    The 'mid_values' key corresponds to middle value for each channel after normalization.
+    The 'min_values' key corresponds to minimal value for each channel after normalization.
+
+    Args:
+        mean (numpy.array): A numpy array representing the mean values.
+        std (numpy.array): A numpy array representing the standard deviations.
+
+    Returns:
+        dict: A dictionary with keys 'max_values', 'mid_values', and 'min_values'. Each key corresponds to a numpy
+        array of normalized values based on the input mean and standard deviation.
+    """
+    low_mid_high_values_dict = {}
+    low_mid_high_values_dict["max_values"] = (np.array([1, 1, 1]) - np.array(mean)) / np.array(std)
+    low_mid_high_values_dict["mid_values"] = (np.array([0.5, 0.5, 0.5]) - np.array(mean)) / np.array(std)
+    low_mid_high_values_dict["min_values"] = (np.array([0, 0, 0]) - np.array(mean)) / np.array(std)
+    return low_mid_high_values_dict
 
 
 def try_perturb_pixel_finer_granularity(x, y, model, img_x, img_y, g, device):
@@ -367,6 +396,10 @@ def try_perturb_pixel_finer_granularity(x, y, model, img_x, img_y, g, device):
     n_queries_pert = 0
     pert_img = torch.clone(img_x)
     finer_pert_granularity_list = generate_finer_granularity(g)
+    # mean = [0, 0, 0]
+    # std = [1, 1, 1]
+    # norm_finer_pert_granularity_list = [[(val - mean[i]) / std[i] for i, val in enumerate(row)] for row in finer_pert_granularity_list]
+    # print(norm_finer_pert_granularity_list)
 
     softmax = nn.Softmax(dim=1)
 
@@ -415,6 +448,8 @@ def get_data_set(args, is_train=True):
         args (argparse.Namespace): An object containing the parsed command-line arguments.
             - args.data_set (str): The name of the dataset to load. Supported options are "cifar10" and "imagenet".
             - args.imagenet_dir (str, optional): The directory containing the ImageNet dataset images, if applicable.
+            - args.mean_norm (list of float, optional): The list of mean values for each channel for normalization.
+            - args.std_norm (list of float, optional): The list of standard deviation values for each channel for normalization.
         is_train (bool, optional): If True, the function loads the training dataset. Otherwise, it loads the test dataset.
             Default is True.
 
@@ -428,7 +463,8 @@ def get_data_set(args, is_train=True):
     if args.data_set == "cifar10":
         img_dim = 32
         transform = transforms.Compose(
-            [transforms.ToTensor()])
+            [transforms.ToTensor(),
+             transforms.Normalize(mean=args.mean_norm, std=args.std_norm)])
         train_data = datasets.CIFAR10(root='./data', train=is_train, download=True, transform=transform)
     elif args.data_set == "imagenet":
         img_dim = 224
@@ -436,15 +472,13 @@ def get_data_set(args, is_train=True):
             raise Exception("imagenet_dir must be not None")
         if not os.path.exists('./' + args.imagenet_dir):
             raise Exception("can't find the directory for ImageNet")
-        mean = [0.485, 0.456, 0.406]
-        std = [0.229, 0.224, 0.225]
         train_data = datasets.ImageFolder(
             os.path.join(args.imagenet_dir),
             transforms.Compose([
                 transforms.Resize(img_dim),
                 transforms.CenterCrop(img_dim),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=mean, std=std)
+                transforms.Normalize(mean=args.mean_norm, std=args.std_norm)
             ]))
 
     return train_data, img_dim
@@ -514,7 +548,7 @@ def write_program_results(args, class_idx, best_program, best_queries):
         f.write(f"average number of queries on training set: {best_queries}\n\n")
 
 
-def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g, g, device):
+def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g, g, lmh_dict, device):
     """
     Selects n images from a data loader such that a successful one pixel attack can be performed on the selected images.
 
@@ -525,6 +559,7 @@ def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g,
         model (nn.Module): A PyTorch model used for predictions.
         max_g (int): The maximum number of pixels to perturb with finer granularity.
         g (int): The level of granularity.
+        lmh_dict (dict): A dictionary containing the 'min_values', 'mid_values', and 'max_values' for the perturbations.
         device (torch.device): The device to perform computations on (e.g., 'cpu' or 'cuda').
 
     Returns:
@@ -542,7 +577,7 @@ def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g,
             if not is_correct_prediction(model, img_x, img_y) or img_y.item() != true_label:
                 continue
 
-            possible_loc_perturbations = create_sorted_loc_pert_list(img_x)
+            possible_loc_perturbations = create_sorted_loc_pert_list(img_x, lmh_dict)
             possible_loc_perturbations.append("STOP")
             min_confidence_dict = {}
 
@@ -567,7 +602,8 @@ def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g,
 
                 x, y = loc_perturbation[0]
                 pert_type = loc_perturbation[1]
-                is_success, queries, curr_confidence = try_perturb_pixel(x, y, model, img_x, img_y, pert_type, device)
+                is_success, queries, curr_confidence = try_perturb_pixel(x, y, model, img_x, img_y, pert_type,\
+                                                                         lmh_dict, device)
                 update_min_confidence_dict(min_confidence_dict, x, y, curr_confidence)
 
             if is_success:

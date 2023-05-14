@@ -11,8 +11,8 @@ from utils import *
 
 
 
-def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, device, is_test=False,\
-                class_idx=None, results_path=None):
+def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, lmh_dict, device,\
+                is_test=False, class_idx=None, results_path=None):
     """
     Run the specified program for adversarial attacks on a given model using the provided dataloader.
 
@@ -24,6 +24,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
         center_matrix (torch.Tensor): A matrix representing the distance of each pixel to the image center.
         max_g (int): The maximum number of pixels to perturb with finer granularity.
         g (int): The level of granularity.
+        lmh_dict (dict): A dictionary containing the 'min_values', 'mid_values', and 'max_values' for the perturbations.
         device (torch.device): The device to perform computations on (e.g., 'cuda' or 'cpu').
         is_test (bool, optional): Whether the current run is for the test set. Defaults to False.
         class_idx (int, optional): Index of the current class. Required if is_test is True. Defaults to None.
@@ -49,7 +50,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
         if not is_correct_prediction(model, img_x, img_y):
             continue
         num_imgs += 1
-        possible_loc_pert_list = create_sorted_loc_pert_list(img_x)
+        possible_loc_pert_list = create_sorted_loc_pert_list(img_x, lmh_dict)
         possible_loc_pert_list.append("STOP")
         indicators_tensor = torch.zeros((8, img_dim, img_dim))
         orig_prob = get_orig_confidence(model, img_x, img_y, device)
@@ -75,7 +76,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
             pert_type = loc_pert[1]
             if indicators_tensor[pert_type_to_idx_dict[pert_type]][x][y] > 0:
                 continue
-            is_success, queries, curr_prob = try_perturb_pixel(x, y, model, img_x, img_y, pert_type, device)
+            is_success, queries, curr_prob = try_perturb_pixel(x, y, model, img_x, img_y, pert_type, lmh_dict, device)
             indicators_tensor[pert_type_to_idx_dict[pert_type]][x][y] = 1
             n_queries += queries
             if is_success:
@@ -115,8 +116,8 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                                 new_y = max(min(img_dim - 1, y + s), 0)
                                 if indicators_tensor[pert_type_to_idx_dict[pert_type]][new_x][new_y] > 0:
                                     continue
-                                is_success, queries, curr_prob = try_perturb_pixel(new_x, new_y, model,
-                                                                                   img_x, img_y, pert_type, device)
+                                is_success, queries, curr_prob = try_perturb_pixel(new_x, new_y, model, img_x, img_y,\
+                                                                                   pert_type, lmh_dict, device)
                                 indicators_tensor[pert_type_to_idx_dict[pert_type]][new_x][new_y] = 1
                                 n_queries += queries
                                 update_min_confidence_dict(min_prob_dict, new_x, new_y, curr_prob)
@@ -136,8 +137,8 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                                 continue
                             if n_queries >= max_queries:
                                 break
-                            is_success, queries, curr_prob = try_perturb_pixel(new_x, new_y, model,
-                                                                               img_x, img_y, new_pert_type, device)
+                            is_success, queries, curr_prob = try_perturb_pixel(new_x, new_y, model, img_x, img_y,\
+                                                                               new_pert_type, lmh_dict, device)
                             indicators_tensor[pert_type_to_idx_dict[new_pert_type]][new_x][new_y] = 1
                             update_min_confidence_dict(min_prob_dict, new_x, new_y, curr_prob)
                             n_queries += queries
@@ -172,6 +173,9 @@ def synthesize(args):
             - args.g (int): The level of granularity.
             - args.max_g (int): The number of pixels with finer granularity.
             - args.max_queries (int) : The maximal number of possible queries per image.
+            - args.mean_norm (list[float]):  The mean values for each channel used in image normalization.
+            - args.std_norm (list[float]):  The standard deviation values for each channel used in image normalization.
+
 
     Returns:
         None
@@ -198,6 +202,9 @@ def synthesize(args):
     # Generate center matrix
     center_matrix = generate_center_matrix(img_dim)
 
+    #Create low_mid_high_values dict
+    lmh_dict = create_low_mid_high_values_dict(args.mean_norm, args.std_norm)
+
     # Write initial synthesis information to a file
     with open(args.model + '_' + args.data_set + '.txt', 'w') as f:
         f.write("data set: " + args.data_set + "\n")
@@ -212,14 +219,15 @@ def synthesize(args):
         print("########################")
 
         # Select a subset of images from the class
-        train_imgs_idx = select_n_images(args.num_train_images, class_idx, train_loader, model, args.max_g, args.g, device)
+        train_imgs_idx = select_n_images(args.num_train_images, class_idx, train_loader, model, args.max_g, args.g,\
+                                         lmh_dict, device)
         n_train_data = torch.utils.data.Subset(train_data, train_imgs_idx)
         data_loader = torch.utils.data.DataLoader(n_train_data, shuffle=False, batch_size=1)
 
         # Initialize the best program and its query count
         best_program = program_.Program(img_dim)
         best_queries = run_program(best_program, model, data_loader, img_dim, center_matrix, args.max_g, args.g,\
-                                   args.max_queries, device)
+                                   args.max_queries, lmh_dict, device)
         previous_best_queries = None
         num_same_best_queries_iter = 1
 
@@ -252,7 +260,7 @@ def synthesize(args):
                 for device_ in devices:
                     processes.append(ctx.Process(target=run_MH, \
                         args=(best_program, best_queries, model, data_loader, img_dim, center_matrix, 10, queue_proc,\
-                              args.max_g, args.g, args.max_queries, device_)))
+                              args.max_g, args.g, args.max_queries, lmh_dict, device_)))
 
                 # Start and join all processes
                 for proc in processes:
@@ -280,6 +288,10 @@ if __name__ == '__main__':
     parser.add_argument('--g', default=0, type=int, help='Granularity level for the synthesis process')
     parser.add_argument('--max_g', default=0, type=int, help='Maximum number of pixels with finer granularity')
     parser.add_argument('--max_queries', default=10000, type=int, help='maximal number of queries per image')
+    parser.add_argument('--mean_norm', metavar='N', type=float, nargs='+', default=[0.0, 0.0, 0.0],\
+                    help='List of mean values for each channel used in image normalization. Default is [0.0, 0.0, 0.0]')
+    parser.add_argument('--std_norm', metavar='N', type=float, nargs='+', default=[1.0, 1.0, 1.0],\
+                    help='List of standard deviation values for each channel used in image normalization. Default is [1.0, 1.0, 1.0]')
 
     args = parser.parse_args()
     synthesize(args)

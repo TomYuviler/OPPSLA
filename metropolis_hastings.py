@@ -48,7 +48,7 @@ def mutate_condition_type(program, img_dim, idx):
 
 
 def run_MH(init_program, init_queries, model, dataloader, img_dim, center_matrix, max_iter, queue_proc, max_g, g,\
-           max_queries, device):
+           max_queries, lmh_dict, device):
     """
     Perform Metropolis-Hastings algorithm for program optimization.
 
@@ -68,6 +68,7 @@ def run_MH(init_program, init_queries, model, dataloader, img_dim, center_matrix
         max_g (int): The maximum number of pixels to perturb with finer granularity.
         g (int): The level of granularity.
         max_queries (int) : The maximal number of possible queries per image.
+        lmh_dict (dict): A dictionary containing the 'min_values', 'mid_values', and 'max_values' for the perturbations.
         device (torch.device): The device where the model and tensors will be processed, e.g., 'cpu' or 'cuda'.
 
     Returns:
@@ -99,7 +100,7 @@ def run_MH(init_program, init_queries, model, dataloader, img_dim, center_matrix
                     mut_func(program, img_dim, idx_mutate - scale)
                     break
 
-        queries = run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, device)
+        queries = run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, lmh_dict, device)
         score = math.e ** (-beta * (queries))
         if score == 0 or best_score == 0:
             alpha = 0
