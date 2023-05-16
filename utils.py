@@ -10,7 +10,7 @@ from torchvision import datasets
 from CIFAR10_models.vgg import vgg16_bn
 from CIFAR10_models.resnet import resnet18
 from CIFAR10_models.googlenet import GoogLeNet
-from torchvision.models import resnet50, efficientnet_b0, densenet121
+from torchvision.models import resnet50, densenet121
 from tqdm import tqdm
 
 
@@ -498,7 +498,6 @@ def get_data_set(args, is_train=True):
                 transforms.ToTensor(),
                 transforms.Normalize(mean=args.mean_norm, std=args.std_norm)
             ]))
-
     return train_data, img_dim
 
 
@@ -507,11 +506,12 @@ def load_model(model_name):
     Loads a pre-trained model given its name and transfers it to the specified device.
 
     Args:
-        model_name (str): The name of the model to load. Supported options are "vgg16", "resnet18", and "GoogLeNet".
+        model_name (str): The name of the model to load.
 
     Returns:
         model (torch.nn.Module): The loaded and pre-trained model, and set to evaluation mode.
     """
+    #CIFAR-10
     if model_name == "vgg16":
         model = vgg16_bn()
         model.load_state_dict(torch.load("CIFAR10_models/vgg16_bn.pt", map_location='cpu'))
@@ -521,6 +521,12 @@ def load_model(model_name):
     elif model_name == "GoogLeNet":
         model = GoogLeNet()
         model.load_state_dict(torch.load("CIFAR10_models/googlenet.pt", map_location='cpu'))
+
+    #ImageNet
+    elif model_name == "resnet50":
+        model = resnet50(pretrained=True)
+    elif model_name == "densenet121":
+        model = densenet121(pretrained=True)
 
     model.eval()
     return model

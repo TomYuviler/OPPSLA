@@ -59,7 +59,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
         n_queries = 0
         min_prob_dict = {}
         for loc_pert in possible_loc_pert_list:
-            if n_queries >= max_queries or is_success:
+            if (n_queries >= max_queries and is_test) or is_success:
                 break
             if loc_pert == "STOP":
                 sorted_loc_list = sorted(min_prob_dict.items(), key=lambda x: x[1])
@@ -102,7 +102,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
 
             loc_queue, pert_queue = initialize_pixels_conf_queues(x, y, pert_type, curr_prob)
             while ((not loc_queue.empty()) or (not pert_queue.empty())) and not is_success:
-                if n_queries >= max_queries:
+                if n_queries >= max_queries and is_test:
                     break
                 while (not loc_queue.empty()) and (not is_success):
                     pixel_prob = loc_queue.get()
@@ -111,7 +111,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                     if check_cond(program.cond_3, img_x, best_x, best_y, orig_prob, pixel_prob[2], center_matrix):
                         for r in [-1, 0, 1]:
                             for s in [-1, 0, 1]:
-                                if is_success or n_queries >= max_queries:
+                                if is_success or (n_queries >= max_queries and is_test):
                                     break
                                 new_x = max(min(img_dim - 1, x + r), 0)
                                 new_y = max(min(img_dim - 1, y + s), 0)
@@ -136,7 +136,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                         if new_pert_type is not None:
                             if indicators_tensor[pert_type_to_idx_dict[new_pert_type]][new_x][new_y] > 0:
                                 continue
-                            if n_queries >= max_queries:
+                            if n_queries >= max_queries and is_test:
                                 break
                             is_success, queries, curr_prob = try_perturb_pixel(new_x, new_y, model, img_x, img_y,\
                                                                                new_pert_type, lmh_dict, device)
@@ -280,7 +280,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='OPPSLA Synthesizer')
     parser.add_argument('--model', default='resnet18', type=str,
                         help='Model architecture to use (e.g., vgg16, resnet18, etc.)')
-    parser.add_argument('--data_set', default='cifar10', type=str, help='Dataset to use - must be CIFAR-10 or ImageNet')
+    parser.add_argument('--data_set', default='cifar10', type=str, choices=['cifar10', 'imagenet'],
+                        help='Dataset to use - must be CIFAR-10 or ImageNet')
     parser.add_argument('--classes_list', metavar='N', type=int, nargs='+', help='List of classes for the synthesis')
     parser.add_argument('--num_train_images', default=50, type=int, help='# of images in the training set per class')
     parser.add_argument('--imagenet_dir', type=str, help='Directory containing ImageNet dataset images')
