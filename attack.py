@@ -18,6 +18,7 @@ def attack(args):
             - args.classes_list (List[int]): The list of classes to attack.
             - args.max_g (int): The maximum number of pixels to perturb with finer granularity.
             - args.g (int): The level of granularity.
+            - args.max_k (int): Maximum number of pixels that can be perturbed.
             - args.max_queries (int) : The maximal number of possible queries per image.
             - args.mean_norm (list[float]):  The mean values for each channel used in image normalization.
             - args.std_norm (list[float]):  The standard deviation values for each channel used in image normalization.
@@ -57,7 +58,7 @@ def attack(args):
         available_devices.put(f"cuda:{i}")
     task_list = [(i, program_dict[args.classes_list[i]], model, test_loader, img_dim, center_matrix, args.max_g, \
          args.g, args.max_queries, lmh_dict, args.mean_norm, args.std_norm, devices[i % num_gpus], True,\
-                  args.classes_list[i], args.results_path) for i in range(num_classes)]
+                  args.classes_list[i], args.results_path, args.max_k) for i in range(num_classes)]
 
     # Perform attack
     with tmp.Pool(processes=num_gpus) as pool, tqdm(total=num_classes, desc="Attacking") as pbar:
@@ -80,6 +81,7 @@ if __name__ == '__main__':
     parser.add_argument('--g', default=0, type=int, help='level of granularity')
     parser.add_argument('--max_g', default=0, type=int, help='number of pixels with finer granularity')
     parser.add_argument('--max_queries', default=10000, type=int, help='maximal number of queries per image')
+    parser.add_argument('--max_k', default=1, type=int, help='maximal number of perturbed pixels')
     parser.add_argument('--mean_norm', metavar='N', type=float, nargs='+', default=[0.0, 0.0, 0.0],\
         help='List of mean values for each channel used in image normalization. Default is [0.0, 0.0, 0.0]')
     parser.add_argument('--std_norm', metavar='N', type=float, nargs='+', default=[1.0, 1.0, 1.0],\

@@ -12,7 +12,7 @@ from utils import *
 
 
 def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, max_queries, lmh_dict, mean_norm,
-                std_norm, device, is_test=False, class_idx=None, results_path=None):
+                std_norm, device, is_test=False, class_idx=None, results_path=None, max_k=1):
     """
     Run the specified program for adversarial attacks on a given model using the provided dataloader.
 
@@ -31,6 +31,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
         is_test (bool, optional): Whether the current run is for the test set. Defaults to False.
         class_idx (int, optional): Index of the current class. Required if is_test is True. Defaults to None.
         results_path (str, optional): Path to the directory where the results CSV file should be saved.
+        max_k (int, optional): Maximal number of perturbed pixels. Defaults to 1.
 
     Returns:
         float: The average number of queries required to succeed in the adversarial attack.
@@ -47,6 +48,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
         is_success = False
         img_x, img_y = data.to(device), target.to(device)
         if is_test:
+            n_perturbed_pixels = 1
             if img_y.item() != class_idx:
                 continue
         if not is_correct_prediction(model, img_x, img_y):
@@ -58,10 +60,22 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
         orig_prob = get_orig_confidence(model, img_x, img_y, device)
         n_queries = 0
         min_prob_dict = {}
+        few_pixel_list = []
         for loc_pert in possible_loc_pert_list:
             if (n_queries >= max_queries and is_test) or is_success:
                 break
             if loc_pert == "STOP":
+                # Few pixel attack
+                if is_test and max_k > 1:
+                    few_pixel_list = sorted(few_pixel_list, key=lambda x: x[2])
+                    is_success, queries, curr_prob, n_perturbed_pixels = try_perturb_few_pixels(max_k, few_pixel_list,
+                                                        model, img_x, img_y, n_queries, max_queries, lmh_dict, device)
+                    n_queries += queries
+                    if is_success:
+                        sum_queries += n_queries
+                    break
+
+                # Finer granularity
                 sorted_loc_list = sorted(min_prob_dict.items(), key=lambda x: x[1])
                 for loc_idx in range(max_g):
                     if g <= 0:
@@ -84,6 +98,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                 sum_queries += n_queries
                 break
             update_min_confidence_dict(min_prob_dict, x, y, curr_prob)
+            few_pixel_list.append([(x, y), pert_type, curr_prob.item()])
             if check_cond(program.cond_1, img_x, x, y, orig_prob, curr_prob, center_matrix):
                 for r in [-1, 0, 1]:
                     for s in [-1, 0, 1]:
@@ -122,6 +137,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                                 indicators_tensor[pert_type_to_idx_dict[pert_type]][new_x][new_y] = 1
                                 n_queries += queries
                                 update_min_confidence_dict(min_prob_dict, new_x, new_y, curr_prob)
+                                few_pixel_list.append([(new_x, new_y), pert_type, curr_prob.item()])
                                 loc_queue.put(((new_x, new_y), pert_type, curr_prob))
                                 pert_queue.put(((new_x, new_y), pert_type, curr_prob))
                                 if is_success:
@@ -142,6 +158,7 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
                                                                                new_pert_type, lmh_dict, device)
                             indicators_tensor[pert_type_to_idx_dict[new_pert_type]][new_x][new_y] = 1
                             update_min_confidence_dict(min_prob_dict, new_x, new_y, curr_prob)
+                            few_pixel_list.append([(new_x, new_y), new_pert_type, curr_prob.item()])
                             n_queries += queries
                             loc_queue.put(((new_x, new_y), new_pert_type, curr_prob))
                             pert_queue.put(((new_x, new_y), new_pert_type, curr_prob))
@@ -153,7 +170,8 @@ def run_program(program, model, dataloader, img_dim, center_matrix, max_g, g, ma
             num_success += 1
 
         if is_test:
-            results_df = update_results_df(results_df, results_path, batch_idx, class_idx, is_success, n_queries)
+            results_df = update_results_df(results_df, results_path, batch_idx, class_idx, is_success, n_queries,
+                                           n_perturbed_pixels)
     model.to('cpu')
     if not is_test:
         return sum_queries / num_success

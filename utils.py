@@ -640,7 +640,7 @@ def select_n_images(num_synthesis_images, true_label, data_loader, model, max_g,
                 if len(successful_indices) == num_synthesis_images:
                     return successful_indices
 
-def update_results_df(results_df, results_path, batch_idx, class_idx, is_success, n_queries):
+def update_results_df(results_df, results_path, batch_idx, class_idx, is_success, n_queries, n_perturbed_pixels):
     """
     Update the results DataFrame with the current batch's success status and queries, and save it to a CSV file.
 
@@ -651,6 +651,7 @@ def update_results_df(results_df, results_path, batch_idx, class_idx, is_success
         class_idx (int): Index of the current class.
         is_success (bool): Whether the current batch was successful or not.
         n_queries (int): Number of queries for the current batch.
+        n_perturbed_pixels(int): Number of perturbed pixels.
 
     Returns:
         pd.DataFrame: Updated results DataFrame.
@@ -660,8 +661,64 @@ def update_results_df(results_df, results_path, batch_idx, class_idx, is_success
         "class": class_idx,
         "is_success": is_success,
         "queries": n_queries if is_success else -1,
+        "number of perturbed pixels": n_perturbed_pixels if is_success else -1
     }
     results_df = results_df.append(result_row, ignore_index=True)
     results_df.to_csv(f"{results_path[2:]}/class_{class_idx}.csv")
 
     return results_df
+
+
+def try_perturb_few_pixels(max_k, few_pixel_list, model, img_x, img_y, curr_n_queries, max_queries, lmh_dict, device):
+    """
+    Attempts to perturb a few pixels in the image to cause misclassification.
+
+    Parameters:
+    max_k (int): Maximum number of pixels that can be perturbed.
+    few_pixel_list (list): List of pixels that can be perturbed. Each entry in the list is a tuple with pixel location and perturbation type.
+    model (torch.nn.Module): The PyTorch model to use for prediction.
+    img_x (torch.Tensor): The input image tensor to be perturbed.
+    img_y (torch.Tensor): The true label of the image.
+    curr_n_queries (int): The current number of queries made to the model.
+    max_queries (int): The maximum number of queries allowed.
+    lmh_dict (dict): Dictionary holding the min and max values for pixel perturbation.
+    device (str or torch.device): The device (CPU or GPU) where the computations will be performed.
+
+    Returns:
+    tuple: A tuple containing:
+        - bool: True if the perturbation caused misclassification, False otherwise.
+        - int: The total number of queries made to the model.
+        - float: The confidence of the model's prediction for the true label.
+        - int: The number of pixels perturbed.
+    """
+    n_possible_pert = min(len(few_pixel_list), 100)
+    weights_pert = [(2 * n_possible_pert - 2 * i + 1) / n_possible_pert ** 2 for i in range(1, n_possible_pert + 1)]
+    n_queries_pert = 0
+    curr_k = 2
+    n_queries_k = 0
+    while curr_n_queries + n_queries_pert < max_queries:
+        n_queries_k += 1
+        if n_queries_k > 1000 and curr_k < max_k:
+            curr_k = min(curr_k + 1, max_k)
+            n_queries_k = 1
+
+        pert_img = torch.clone(img_x)
+        n_queries_pert += 1
+        sampled_pert = random.choices(few_pixel_list[:n_possible_pert], weights=weights_pert, k=curr_k)
+        for loc_pert in sampled_pert:
+            x, y = loc_pert[0]
+            pert_type = loc_pert[1]
+            for c in range(3):
+                if pert_type[c] == "MIN":
+                    pert_img[0][c][x][y] = lmh_dict['min_values'][c]
+                else:
+                    pert_img[0][c][x][y] = lmh_dict['min_values'][c]
+
+        softmax = nn.Softmax(dim=1)
+        predictions_vector = softmax(model(pert_img).data)
+        pred = torch.argmax(predictions_vector)
+        confidence = predictions_vector[0][img_y.item()].to(device)
+        if pred.item() != img_y.item():
+            return True, n_queries_pert, confidence, curr_k
+
+    return False, n_queries_pert, 0, curr_k
