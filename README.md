@@ -72,7 +72,7 @@ python3 attack.py --model "resnet18" --data_set "cifar10" --max_queries 10000 --
 Here, we will synthesize a program to perform an attack on a CIFAR-10 GoogLeNet model, with up to '''max_k''' perturbed pixels.
 
 To synthesize the program, run:
-```bash```
+```bash
 python3 synthesize.py --model "GoogLeNet" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
 ```
 
@@ -81,12 +81,12 @@ And to execute the attack, use:
 python3 attack.py --model "GoogLeNet" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "GoogLeNet_cifar10.pkl" --max_k 5
 ```
 
-Executing a One Pixel Attack on a ResNet50 Model (ImageNet)
+### Executing a One Pixel Attack on a ResNet50 Model (ImageNet)
 Finally, for an example of a one pixel attack on the first four classes of an ImageNet ResNet50 model, use the following commands.
 
 To synthesize the program:
 ```bash
-python3 synthesize.py --model "resnet50" --data_set "imagenet" --num_train_images 10 --classes_list 0 1 2 3 4 5 6 
+python3 synthesize.py --model "resnet50" --data_set "imagenet" --num_train_images 10 --classes_list 0 1 2 3
 ```
 
 And to execute the attack, use:
