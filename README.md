@@ -47,7 +47,15 @@ The following are examples of how to use OPPSLA to synthesize one/few pixel adve
 python3 synthesize.py --model "vgg16" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
 ```
 ```bash
-python3 attack.py --model "vgg16" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 5 6 7 8 9 --program_path "vgg16_cifar10.pkl" --max_k 5
+python3 attack.py --model "vgg16" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 5 6 7 8 9 --program_path "vgg16_cifar10.pkl" --max_k 1
+```
+
+### Synthesize program and use it to perform one pixel attack on CIFAR-10 ResNet18 model, on the five first classes with finer granularity of perturbations. 
+```bash
+python3 synthesize.py --model "resnet18" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 --max_iter 210 --g 1 --max_g 5
+```
+```bash
+python3 attack.py --model "resnet18" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "resnet18_cifar10.pkl" --max_k 1 --g 1 --max_g 5
 ```
 
 python3 synthesize.py --model "vgg16" --data_set "cifar10" --num_train_images 50 --g 0 --max_g 0 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
