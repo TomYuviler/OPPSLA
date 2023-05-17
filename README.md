@@ -52,6 +52,7 @@ CIFAR-10 models adapted from [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo
 ## Citation
 ```bash
 pip install -r requirements.txt
+```
 
 If you find this work useful in your research, please cite:
 
