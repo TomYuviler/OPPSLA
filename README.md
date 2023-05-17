@@ -44,8 +44,14 @@ _TODO: Provide instructions on how to use the code, including input formats, exa
 The following are examples of how to use OPPSLA to synthesize one/few pixel adversarial programs, and how to use these programs to attack the model.
 ### Synthesize program and use it to perform one pixel attack on CIFAR-10 VGG-16BN model, on all possible ten classes 
 ```bash
-python3 synthesize.py --model "vgg16" --data_set "cifar10" --num_train_images 50 --g 0 --max_g 0 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
+python3 synthesize.py --model "vgg16" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
 ```
+```bash
+python3 attack.py --model "vgg16" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 5 6 7 8 9 --program_path "vgg16_cifar10.pkl" --max_k 5
+```
+
+python3 synthesize.py --model "vgg16" --data_set "cifar10" --num_train_images 50 --g 0 --max_g 0 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
+
 
 ## Results
 
