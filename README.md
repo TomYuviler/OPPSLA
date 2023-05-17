@@ -22,22 +22,6 @@ obtains a state-of-the-art success rate, often with an order of magnitude fewer 
 We further show that OPPSLA’s programs are transferable to other classifiers, unlike existing one pixel attacks,
 which run from scratch on every classifier and input.
 
-
-## Installation
-
-1. Clone the repository:
-
-git clone https://github.com/TomYuviler/OPPSLA.git
-
-
-2. Navigate to the cloned repository and install the required dependencies:
-
-cd OnePixelAttacks-SketchedPrograms
-pip install -r requirements.txt
-
-csharp
-Copy code
-
 ## Usage
 
 This section provides examples of how to utilize OPPSLA for synthesizing one or few pixel adversarial programs, and using these programs to execute an attack on a model.
@@ -96,7 +80,7 @@ python3 attack.py --model "resnet50" --data_set "imagenet" --max_queries 10000 -
 
 ## Results
 
-_TODO: Summarize the results obtained from the experiments performed in the paper._
+![Example Image](results.png)
 
 ## Models
 CIFAR-10 models adapted from [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4431043.svg)](http://dx.doi.org/10.5281/zenodo.4431043). 
