@@ -79,7 +79,7 @@ python3 attack.py --model "resnet50" --data_set "imagenet" --max_queries 10000 -
 ```
 
 ## Results
-
+ OPPSLA vs. two baselines over one pixel attacks for CIFAR-10 classifiers and ImageNet classifiers:
 ![Example Image](results.png)
 
 ## Models
