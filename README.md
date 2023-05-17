@@ -78,7 +78,7 @@ python3 synthesize.py --model "GoogLeNet" --data_set "cifar10" --num_train_image
 
 And to execute the attack, use:
 ```bash
-python3 attack.py --model "GoogLeNet" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "GoogLeNet_cifar10.pkl" --max_k 5
+python3 attack.py --model "GoogLeNet" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 5 6 7 8 9 --program_path "GoogLeNet_cifar10.pkl" --max_k 5
 ```
 
 ### Executing a One Pixel Attack on a ResNet50 Model (ImageNet)
@@ -86,12 +86,12 @@ Finally, for an example of a one pixel attack on the first four classes of an Im
 
 To synthesize the program:
 ```bash
-python3 synthesize.py --model "resnet50" --data_set "imagenet" --num_train_images 10 --classes_list 0 1 2 3
+python3 synthesize.py --model "resnet50" --data_set "imagenet" --num_train_images 10 --classes_list 0 1 2 3 --imagenet_dir "imagenet_train" --mean_norm 0.485 0.456 0.406 --std_norm 0.229 0.224 0.225
 ```
 
 And to execute the attack, use:
 ```bash
-python3 attack.py --model "resnet50" --data_set "imagenet" --max_queries 10000 --classes_list 0 1 2 3 --program_path "resnet_imagenet.pkl" --max_k 1 --imagenet_dir "imagenet_val"
+python3 attack.py --model "resnet50" --data_set "imagenet" --max_queries 10000 --classes_list 0 1 2 3 --program_path "resnet_imagenet.pkl" --max_k 1 --imagenet_dir "imagenet_val"  --mean_norm 0.485 0.456 0.406 --std_norm 0.229 0.224 0.225
 ```
 
 ## Results
