@@ -40,7 +40,6 @@ Copy code
 
 ## Usage
 
-_TODO: Provide instructions on how to use the code, including input formats, example commands, and output descriptions._
 The following are examples of how to use OPPSLA to synthesize one/few pixel adversarial programs, and how to use these programs to attack the model.
 ### Synthesize program and use it to perform one pixel attack on CIFAR-10 VGG-16BN model, on all possible ten classes 
 ```bash
@@ -58,7 +57,7 @@ python3 synthesize.py --model "resnet18" --data_set "cifar10" --num_train_images
 python3 attack.py --model "resnet18" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "resnet18_cifar10.pkl" --max_k 1 --g 1 --max_g 5
 ```
 
-### Synthesize program and use it to perform few attack (with ```max_k``` perturbed pixels) on CIFAR-10 GoogLeNet model. 
+### Synthesize program and use it to perform few attack (with up to ```max_k``` perturbed pixels) on CIFAR-10 GoogLeNet model. 
 ```bash
 python3 synthesize.py --model "GoogLeNet" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
 ```
@@ -66,8 +65,13 @@ python3 synthesize.py --model "GoogLeNet" --data_set "cifar10" --num_train_image
 python3 attack.py --model "GoogLeNet" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "GoogLeNet_cifar10.pkl" --max_k 5
 ```
 
-python3 synthesize.py --model "vgg16" --data_set "cifar10" --num_train_images 50 --g 0 --max_g 0 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
-
+### Synthesize program and use it to perform one pixel attack on ImageNet ResNet50 model, on the first 4 classes 
+```bash
+python3 synthesize.py --model "resnet50" --data_set "imagenet" --num_train_images 10 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210 --imagenet_dir "imagenet_train"
+```
+```bash
+python3 attack.py --model "resnet50" --data_set "imagenet" --max_queries 10000 --classes_list 0 1 2 3 --program_path "resnet_imagenet.pkl" --max_k 1 --imagenet_dir "imagenet_val"
+```
 
 ## Results
 
@@ -92,3 +96,54 @@ organization={...},
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+Usage
+This section provides examples of how to utilize OPPSLA for synthesizing one or few pixel adversarial programs, and using these programs to execute an attack on a model.
+
+Executing a One Pixel Attack on a VGG-16BN Model (CIFAR-10)
+In this scenario, we will synthesize a program to perform a one pixel attack on all possible ten classes in a CIFAR-10 VGG-16BN model.
+
+First, run the following command to synthesize the program:
+
+bash
+Copy code
+python3 synthesize.py --model "vgg16" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
+Next, use the generated program to perform the attack:
+
+bash
+Copy code
+python3 attack.py --model "vgg16" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 5 6 7 8 9 --program_path "vgg16_cifar10.pkl" --max_k 1
+Executing a One Pixel Attack on a ResNet18 Model (CIFAR-10)
+In this example, we will synthesize a program to perform a one pixel attack on the first five classes in a CIFAR-10 ResNet18 model, with a finer granularity of perturbations.
+
+Run the following command to synthesize the program:
+
+bash
+Copy code
+python3 synthesize.py --model "resnet18" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 --max_iter 210 --g 1 --max_g 5
+And use this command to perform the attack:
+
+bash
+Copy code
+python3 attack.py --model "resnet18" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "resnet18_cifar10.pkl" --max_k 1 --g 1 --max_g 5
+Executing a Few Pixel Attack on a GoogLeNet Model (CIFAR-10)
+Here, we will synthesize a program to perform an attack on a CIFAR-10 GoogLeNet model, with up to max_k perturbed pixels.
+
+To synthesize the program, run:
+
+bash
+Copy code
+python3 synthesize.py --model "GoogLeNet" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
+And to execute the attack, use:
+
+bash
+Copy code
+python3 attack.py --model "GoogLeNet" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "GoogLeNet_cifar10.pkl" --max_k 5
+Executing a One Pixel Attack on a ResNet50 Model (ImageNet)
+Finally, for an example of a one pixel attack on the first four classes of an ImageNet ResNet50 model, use the following commands.
+
+To synthesize the program:
+
+bash
+Copy code
+python3 synthesize.py --model "resnet50" --data_set "imagenet" --num_train_im
