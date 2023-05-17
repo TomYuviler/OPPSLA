@@ -58,7 +58,7 @@ python3 synthesize.py --model "resnet18" --data_set "cifar10" --num_train_images
 python3 attack.py --model "resnet18" --data_set "cifar10" --max_queries 10000 --classes_list 0 1 2 3 4 --program_path "resnet18_cifar10.pkl" --max_k 1 --g 1 --max_g 5
 ```
 
-### Synthesize program and use it to perform few attack (with ```bash max_k``` perturbed pixels) on CIFAR-10 GoogLeNet model. 
+### Synthesize program and use it to perform few attack (with ```max_k``` perturbed pixels) on CIFAR-10 GoogLeNet model. 
 ```bash
 python3 synthesize.py --model "GoogLeNet" --data_set "cifar10" --num_train_images 50 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
 ```
