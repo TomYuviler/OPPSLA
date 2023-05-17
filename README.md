@@ -50,6 +50,8 @@ _TODO: Summarize the results obtained from the experiments performed in the pape
 CIFAR-10 models adapted from [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4431043.svg)](http://dx.doi.org/10.5281/zenodo.4431043). 
 
 ## Citation
+```bash
+pip install -r requirements.txt
 
 If you find this work useful in your research, please cite:
 
