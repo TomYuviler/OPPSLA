@@ -41,6 +41,9 @@ Copy code
 ## Usage
 
 _TODO: Provide instructions on how to use the code, including input formats, example commands, and output descriptions._
+```bash
+--model "vgg16" --data_set "cifar10" --num_train_images 50 --g 0 --max_g 0 --classes_list 0 1 2 3 4 5 6 7 8 9 --max_iter 210
+```
 
 ## Results
 
@@ -50,9 +53,6 @@ _TODO: Summarize the results obtained from the experiments performed in the pape
 CIFAR-10 models adapted from [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4431043.svg)](http://dx.doi.org/10.5281/zenodo.4431043). 
 
 ## Citation
-```bash
-pip install -r requirements.txt
-```
 
 If you find this work useful in your research, please cite:
 
