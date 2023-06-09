@@ -89,13 +89,7 @@ CIFAR-10 models adapted from [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo
 
 If you find this work useful in your research, please cite:
 
-@inproceedings{yuviler2023onepixel,
-title={One Pixel Adversarial Attacks via Sketched Programs},
-author={Tom Yuviler and Dana Drachsler-Cohen},
-booktitle={Proceedings of the ...},
-year={2023},
-organization={...},
-}
+Tom Yuviler and Dana Drachsler-Cohen. 2023. One Pixel Adversarial Attacks via Sketched Programs. Proc. ACM Program. Lang. 7, PLDI, Article 187 (June 2023), 25 pages. https://doi.org/10.1145/3591301
 
 
 ## License
