@@ -1,5 +1,5 @@
 # One Pixel Adversarial Attacks via Sketched Programs
-This repository contains the code for the paper [One Pixel Adversarial Attacks via Sketched Programs](https://dl.acm.org/doi/pdf/10.1145/3591301) by Tom Yuviler and Dana Drachsler-Cohen from the Technion, Israel. The paper proposes a novel approach to generate one pixel adversarial attacks with significantly fewer queries to the network by leveraging program synthesis.
+This repository contains the code for the paper [One Pixel Adversarial Attacks via Sketched Programs](https://dl.acm.org/doi/pdf/10.1145/3591301) by [Tom Yuviler](https://tomyuviler.github.io/) and [Dana Drachsler-Cohen](https://ddana.net.technion.ac.il/) from the Technion, Israel. The paper proposes a novel approach to generate one pixel adversarial attacks with significantly fewer queries to the network by leveraging program synthesis.
 
 ## Abstract
 
